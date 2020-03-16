@@ -79,7 +79,19 @@ end
 post "/rsvps/:id/update" do
     puts "params: #{params}"
 
-    view "update_rsvp"
+    @rsvp = rsvps_table.where(id: params["id"]).to_a[0]
+    @event = events_table.where(id: @rsvp[:event_id]).to_a[0]
+
+    if @current_user && @current_user[:id] == @rsvp[:id]
+        rsvps_table.where(id: params["id"]).update(
+            going: params["going"],
+            comments: params["comments"]
+        )
+
+        view "update_rsvp"
+    else
+        view "error"
+    end
 end
 
 get "/rsvps/:id/destroy" do
@@ -102,12 +114,17 @@ end
 post "/users/create" do
     puts "params: #{params}"
 
-    users_table.insert(
-        name: params["name"],
-        email: params["email"],
-        password: BCrypt::Password.create(params["password"])
-    )
+    existing_user = users_table.where(email: params["email"]).to_a[0]
+    if existing_user
+        view "error"
+    else
+        users_table.insert(
+            name: params["name"],
+            email: params["email"],
+            password: BCrypt::Password.create(params["password"])
+        )
     view "create_user"
+    end
 end
 
 # display the login form (aka "new")
@@ -139,5 +156,5 @@ end
 get "/logout" do
     # remove encrypted cookie for logged out user
     session["user_id"] = nil
-    view "logout"
+    redirect "/logins/new"
 end
